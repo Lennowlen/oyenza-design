@@ -128,10 +128,30 @@ if (at !== -1) {
     for (const match of themeKt.matchAll(/const val ([A-Z_0-9]+) = (0x[0-9A-Fa-f]+)/g)) {
       named.set(match[1], digits(match[2]));
     }
+    // A colour may now be a literal, a companion constant, or a value the
+    // theme takes from the generated OyenzaTokens object.
+    const kname = (text) =>
+      text
+        .replace(/[^a-zA-Z0-9]+/g, '-')
+        .toLowerCase()
+        .split('-')
+        .filter(Boolean)
+        .map((part) => part.toUpperCase())
+        .join('_');
+    const shared = new Map();
+    for (const [name, color] of Object.entries(tokens.brand)) shared.set(kname(name), digits(color));
+    for (const [id, look] of Object.entries(tokens.island)) {
+      for (const [key, color] of Object.entries(look)) {
+        if (typeof color === 'string') shared.set(`ISLAND_${kname(`${id}-${key}`)}`, digits(color));
+      }
+    }
+    for (const [name, color] of Object.entries(tokens.app.light)) shared.set(`APP_${kname(name)}`, digits(color));
     const resolve = (value) => {
       if (!value) return null;
       const trimmed = value.trim();
       if (trimmed.startsWith('0x')) return digits(trimmed);
+      const sharedName = trimmed.match(/OyenzaTokens\.([A-Z_0-9]+)/);
+      if (sharedName) return shared.get(sharedName[1]) ?? null;
       return named.get(trimmed) ?? null;
     };
     let compared = 0;
